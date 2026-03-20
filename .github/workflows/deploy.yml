@@ -1,0 +1,67 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2 Virtual Machine
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # 1. Load or Install NVM & Node 20
+            export NVM_DIR="$HOME/.nvm"
+            if [ ! -s "$NVM_DIR/nvm.sh" ]; then
+              echo "Installing NVM..."
+              curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+            fi
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            
+            nvm install 20
+            nvm use 20
+            nvm alias default 20
+
+            # 2. Ensure PM2 is installed globally
+            if ! command -v pm2 &> /dev/null; then
+              npm install -g pm2
+            fi
+
+            # 3. Clone or pull the repository
+            if [ ! -d "lumina-rewards" ]; then
+              echo "Cloning repository for the first time..."
+              git clone https://github.com/Jade-ops-tech/lumina-rewards.git
+            fi
+            
+            cd lumina-rewards
+            git fetch --all
+            # Reset any local changes to ensure perfect sync with github main branch
+            git reset --hard origin/main
+
+            # 4. Install dependencies and Build Nuxt app
+            # Using clean install
+            if [ -d "node_modules" ]; then
+              npm install
+            else
+              npm install
+            fi
+            
+            # 5. Database Setup
+            npx prisma db push
+            
+            # 6. Build the application for production
+            npm run build
+
+            # 7. Start or Restart the server via PM2
+            pm2 start ecosystem.config.cjs || pm2 restart lumina-rewards
+            
+            # Ensure PM2 resurrects on server reboot
+            pm2 save
+            # sudo env PATH=$PATH:/home/${{ secrets.EC2_USERNAME }}/.nvm/versions/node/$(node -v)/bin pm2 startup systemd -u ${{ secrets.EC2_USERNAME }} --hp /home/${{ secrets.EC2_USERNAME }}
