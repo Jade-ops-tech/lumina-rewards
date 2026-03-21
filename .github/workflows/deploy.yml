@@ -63,6 +63,7 @@ jobs:
             
             # 5. Database Setup
             npx prisma db push
+            node prisma/seed.mjs
             
             # 6. Build the application for production
             npm run build
