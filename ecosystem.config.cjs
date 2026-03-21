@@ -1,3 +1,5 @@
+const path = require('path')
+
 module.exports = {
   apps: [
     {
@@ -9,7 +11,8 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         NITRO_PORT: 3000,
-        NITRO_HOST: '0.0.0.0'
+        NITRO_HOST: '0.0.0.0',
+        DATABASE_URL: 'file:' + path.join(__dirname, 'prisma/dev.db')
       }
     }
   ]
